@@ -39,18 +39,17 @@ TODO: Everything.
 References
 ==========
 
-http://progrium.com/blog/2012/11/26/x-callback-header-an-evented-web-building-block/
-http://progrium.com/blog/2012/11/19/from-webhooks-to-the-evented-web/
-http://john-sheehan.com/post/36704862225/x-callback-header-evented-web-building-block-by
-https://code.google.com/p/pubsubhubbub/
-http://www.slideshare.net/brevoortm/the-evented-web
-
+ * http://progrium.com/blog/2012/11/26/x-callback-header-an-evented-web-building-block/
+ * http://progrium.com/blog/2012/11/19/from-webhooks-to-the-evented-web/
+ * http://john-sheehan.com/post/36704862225/x-callback-header-evented-web-building-block-by
+ * https://code.google.com/p/pubsubhubbub/
+ * http://www.slideshare.net/brevoortm/the-evented-web
 
 Hurt-me web app:
 ================
 
-/ignore-me
-/tickle-me
-/hurt-me-some (50ms)
-/hurt-me-lots (500ms)
-/slay-me      (5000ms)
+	/ignore-me
+	/tickle-me
+	/hurt-me-some (50ms)
+	/hurt-me-lots (500ms)
+	/slay-me      (5000ms)
