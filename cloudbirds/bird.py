@@ -19,10 +19,11 @@ LOW_PORT = 8001
 HIGH_PORT = 9000
 OMEGA_PORT = 8000
 
-OMEGA = False
+app = Flask(__name__)
+app.OMEGA = False
 
 def pick_port():
-	if OMEGA: return OMEGA_PORT
+	if app.OMEGA: return OMEGA_PORT
 	while True: # TODO - probably shouldn't run this forever
 		port=random.randrange(LOW_PORT, HIGH_PORT)
 		if not util.test_for_socket(port=port):
@@ -31,19 +32,28 @@ def pick_port():
 
 # If there's no omega, I need to be omega
 if not (util.test_for_socket(port=OMEGA_PORT)):
-	OMEGA = True			
+	app.OMEGA = True			
 birdport = pick_port()	
-app = Flask(__name__)
 app.debug = True
 app.myBird = agent.CloudBirdAgent(birdport)
+app.listeningPort = None
+if app.OMEGA:
+	app.myBird.fsm.hatch()
+
+def restartListener(port):
+	print "Going to run on %s" % (port)
+	if app.listeningPort:
+		app.listeningPort.stopListening()
+	app.listeningPort = reactor.listenTCP(port, site)
+
 
 
 @app.route('/')
 @app.route('/hello')
 @app.route('/hello/<name>')
 def index(name='World'):
-	print "got request"
-	return "<b>Hello %(name)s</b>!<br/>I am an: %(state)s bird" % {'name' :name, 'state' : app.myBird.fsm.current}
+	return "<b>Hello %(name)s</b>!<br/>I am an: %(state)s bird [%(health)s]" % {
+		'name' :name, 'state' : app.myBird.fsm.current, 'health' : app.myBird.health}
 
 
 @app.route('/tellme/<frombird>', methods=['POST'])
@@ -60,24 +70,36 @@ def tell_me(frombird='9001'):
 
 @app.route('/flock')
 def report_flock():
-	return "<b>Heres what we've got: %(flock)s</b>" % {'flock': app.myBird.flock}
+	flock_listing = ["<li><a href='%(bird)s'>%(bird)s</a></li>" % {'bird' : bird} for bird in app.myBird.flock]
+	return "<b>Heres what we've got: <ul> %(flock)s </ul></b>" %  {'flock': "".join(flock_listing)}
 
 
 @app.route('/gossip')
 def gossip():
 	"""Sends gossip messages.
 	Randomly sends to other birds."""
-	return app.myBird.gossip()
+	try:
+		app.myBird.gossip()
+	except: # TODO (Custom Exception)
+		app.myBird.become_omega()
+		app.OMEGA = True
+		restartListener(pick_port())
 
+@app.route('/healthcheck')
+def healthcheck():
+	"""Polls SNMP data for system health.
+	Stored health data will be gossip'd."""
+	return app.myBird.healthcheck()
 
-l = task.LoopingCall(gossip)
+gossiploop = task.LoopingCall(gossip)
+healthcheckloop = task.LoopingCall(healthcheck)
 # l.stop() will stop the looping calls
 
 resource = WSGIResource(reactor, reactor.getThreadPool(), app)
 site = Site(resource)
-print "Going to run on ", birdport
-reactor.listenTCP(birdport, site)
-l.start(3.0) # call every second
+restartListener(birdport)
+gossiploop.start(3.0) # call every three seconds
+healthcheckloop.start(30.0) # call every 30 seconds
 reactor.run()
 
 # http://highscalability.com/blog/2011/11/14/using-gossip-protocols-for-failure-detection-monitoring-mess.html
