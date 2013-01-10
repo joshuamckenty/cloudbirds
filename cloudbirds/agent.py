@@ -13,6 +13,7 @@ import snmp
 import subprocess
 import json
 import random
+import logging
 
 import requests
 from fysom import Fysom
@@ -47,6 +48,12 @@ class CloudBirdAgent(Agent):
 		self.add_flock_member(self.omega_url)
 		self.add_flock_member(self.url)
 	
+	def __str__(self):
+		return self.__unicode__()
+	
+	def __unicode__(self):
+		return "<a href='%(momma)s'>Momma</a>" % self.momma
+	
 	def become_egg(self):
 		self.fsm = Fysom({
 		  'initial': 'egg',
@@ -65,12 +72,12 @@ class CloudBirdAgent(Agent):
 	def select_port(self):
 		if not (util.test_for_socket(port=OMEGA_PORT)):
 			self.is_omega = True
-			print "OMEGA PORT SELECTION"
+			logging.info("OMEGA PORT SELECTION")
 			return OMEGA_PORT
 		while True: # TODO - probably shouldn't run this forever
 			port=random.randrange(LOW_PORT, HIGH_PORT)
 			if not util.test_for_socket(port=port):
-				print "PORT SELECTION : %s" % (port)
+				logging.info("PORT SELECTION : %s" % (port))
 				return port
 	
 	@property
@@ -106,21 +113,21 @@ class CloudBirdAgent(Agent):
 		except requests.exceptions.ConnectionError, e:
 			# I don't believe in this bird anymore
 			if self.omega_url == bird_url:
-				print "ERROR!! No Omega is bad, need promotion"
+				logging.warn("ERROR!! No Omega is bad, need promotion")
 				raise
 			self.remove_flock_member(bird_url)
 		return "Did it."
 	
 	def process_gossip(self, msg):
-		print "Got some gossip with msg %s" % msg
+		logging.debug("Got some gossip with msg %s" % msg)
 		messages = json.loads(msg)
 		for msg in messages:
 			if msg['action'] == "saw_bird":
 				self.add_flock_member(msg['bird_url'])
-				print "Adding a flock member of %s" % msg['bird_url']
+				logging.debug("Adding a flock member of %s" % msg['bird_url'])
 			if msg['action'] == "dead_bird":
 				self.remove_flock_member(msg['bird_url'])
-				print "Removing a flock member of %s" % msg['bird_url']
+				logging.debug("Removing a flock member of %s" % msg['bird_url'])
 
 	def healthcheck(self):
 		if self.fsm.current == "egg":
@@ -128,9 +135,9 @@ class CloudBirdAgent(Agent):
 		self.health = snmp.get_stats()
 		for stat_key in self.health.iterkeys():
 			stat_val = self.health[stat_key]
-			print "Looking at stat_key of %s with value of %s" % (stat_key, stat_val)
+			logging.debug("Looking at stat_key of %s with value of %s" % (stat_key, stat_val))
 			if stat_key in limits.keys() and stat_val > limits[stat_key]:
-				print "Freaking out!"
+				logging.warn("Stat %s is out of bounds! (Value is %s / %s)" % (stat_key, stat_val, limits[stat_key]))
 				if self.fsm.current == 'dying':
 					return "Too overwhelmed, dying."
 				self.fsm.get_stressed()
@@ -159,18 +166,8 @@ class CloudBirdAgent(Agent):
 		pp = EggProcessProtocol()
 		command = [sys.executable]
 		command.extend(sys.argv)
-		command.extend(['momma', '%s' % old_port])
-		print "Command for spawn is %s" % command
+		logging.debug("Command for spawn is %s" % command)
 		subprocess = reactor.spawnProcess(pp, command[0], command, {'MOMMA_BIRD' : self.url}, childFDs = { 0: 0, 1: 1, 2: 2})
-				# 
-				# if _fork(remain=True): # Runs in spawned child only
-				#	_decouple()
-				#	_fork(remain=False)
-				#	_rebind()
-				#	self.port = self.select_port()
-				#	self.momma = old_port
-				#	self.become_egg()
-		# subprocess.call("python %s" % (" ".join(sys.argv)), shell=True)
 		return "Okay."
 	
 	def die(self):

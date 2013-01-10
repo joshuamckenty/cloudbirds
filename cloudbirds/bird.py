@@ -13,6 +13,8 @@ from twisted.internet import task
 from twisted.internet import reactor
 from twisted.web.wsgi import WSGIResource
 from twisted.web.server import Site
+import logging
+import util
 
 import agent
 
@@ -39,7 +41,7 @@ def _decouple():
 
 def _rebind():
 	""" Rebind stdin/stderr/stdout """
-	return # TEMP
+
 	[f.close() for f in [sys.stdin, sys.stderr, sys.stdout]]
 
 	sys.stdin = os.open('/dev/null', os.O_RDONLY)
@@ -47,9 +49,8 @@ def _rebind():
 	sys.stdout = os.open('/dev/null', os.O_WRONLY)
 
 
-
 def restartListener(port):
-	print "Going to run on %s" % (port)
+	logging.info("Going to run on %s" % (port))
 	app.boundPort = port
 	if app.listeningPort:
 		app.listeningPort.stopListening()
@@ -60,8 +61,8 @@ def restartListener(port):
 @app.route('/hello')
 @app.route('/hello/<name>')
 def index(name='World'):
-	return "<b>Hello %(name)s</b>!<br/>I am an: %(state)s bird [%(health)s]" % {
-		'name' :name, 'state' : app.myBird.fsm.current, 'health' : app.myBird.health}
+	return "<b>Hello %(name)s</b>!<br/>I am an: %(state)s bird<br/> [%(health)s]<br/>Momma: %(momma)s" % {
+		'name' :name, 'state' : app.myBird.fsm.current, 'health' : app.myBird.health, 'momma' : app.myBird.momma}
 
 
 @app.route('/tellme/<frombird>', methods=['POST'])
@@ -96,11 +97,11 @@ def gossip():
 def tick():
 	"""Polls SNMP data for system health.
 	Stored health data will be gossip'd."""
-	print "Ticking on %s ..." % (app.myBird.port)
+	logging.debug("Ticking on %s ..." % (app.myBird.port))
 	# If the listening port doesn't match the internal port,
 	# restart the Listener
 	if app.boundPort != app.myBird.port:
-		print "Bouncing the listener"
+		logging.info("Bouncing the listener")
 		restartListener(app.myBird.port)
 	return app.myBird.tick()
 
@@ -111,21 +112,19 @@ def spawn():
 
 @app.route('/die')
 def die():
-	print "Bye."
+	logging.info("Bye.")
 	reactor.stop()
 	return "Bye"
 	# return app.myBird.die()
 		
-print "I was called like this: %s" % (sys.argv)
+logging.debug("I was called like this: %s" % (sys.argv))
 
-if 'momma' in sys.argv:
-	print "I'm a BABY!"
-	print os.environ.get('MOMMA_BIRD')
-	port = sys.argv[sys.argv.index('momma')+1]
-	print "Baby of %s" % port
+if os.environ.get('MOMMA_BIRD'):
+	logging.debug("I'm a BABY!")
+	logging.info("ENV says momma is %s" % os.environ.get('MOMMA_BIRD'))
 	_fork() and _decouple()
 	_fork() and _rebind()
-	app.myBird.momma = port
+	app.myBird.momma = os.environ.get('MOMMA_BIRD')
 	
 
 
