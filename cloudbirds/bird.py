@@ -5,6 +5,8 @@ TODO:
 Security of this interface
 """
 
+import os
+import sys
 import random
 from flask import Flask, request, render_template, g
 from twisted.internet import task
@@ -13,39 +15,45 @@ from twisted.web.wsgi import WSGIResource
 from twisted.web.server import Site
 
 import agent
-import util
-
-LOW_PORT = 8001
-HIGH_PORT = 9000
-OMEGA_PORT = 8000
 
 app = Flask(__name__)
-app.OMEGA = False
-
-def pick_port():
-	if app.OMEGA: return OMEGA_PORT
-	while True: # TODO - probably shouldn't run this forever
-		port=random.randrange(LOW_PORT, HIGH_PORT)
-		if not util.test_for_socket(port=port):
-			return port
-
-
-# If there's no omega, I need to be omega
-if not (util.test_for_socket(port=OMEGA_PORT)):
-	app.OMEGA = True			
-birdport = pick_port()	
 app.debug = True
-app.myBird = agent.CloudBirdAgent(birdport)
+app.myBird = agent.CloudBirdAgent()
 app.listeningPort = None
-if app.OMEGA:
-	app.myBird.fsm.hatch()
+app.boundPort = None
+
+
+def _fork():
+	""" Fork ourselves."""
+	try:
+		if os.fork():
+			sys.exit(0)
+	except OSError, e:
+		sys.exit("Couldn't fork: %s" % (e))
+
+def _decouple():
+	""" Decouple the child from the parent """
+	# os.chdir('/')
+	os.umask(0)
+	os.setsid()
+
+def _rebind():
+	""" Rebind stdin/stderr/stdout """
+	return # TEMP
+	[f.close() for f in [sys.stdin, sys.stderr, sys.stdout]]
+
+	sys.stdin = os.open('/dev/null', os.O_RDONLY)
+	sys.stderr = os.open('/dev/null', os.O_WRONLY)
+	sys.stdout = os.open('/dev/null', os.O_WRONLY)
+
+
 
 def restartListener(port):
 	print "Going to run on %s" % (port)
+	app.boundPort = port
 	if app.listeningPort:
 		app.listeningPort.stopListening()
 	app.listeningPort = reactor.listenTCP(port, site)
-
 
 
 @app.route('/')
@@ -82,26 +90,50 @@ def gossip():
 		app.myBird.gossip()
 	except: # TODO (Custom Exception)
 		app.myBird.become_omega()
-		app.OMEGA = True
-		restartListener(pick_port())
+		restartListener(app.myBird.port)
 
-@app.route('/healthcheck')
-def healthcheck():
+@app.route('/tick')
+def tick():
 	"""Polls SNMP data for system health.
 	Stored health data will be gossip'd."""
-	return app.myBird.healthcheck()
+	print "Ticking on %s ..." % (app.myBird.port)
+	# If the listening port doesn't match the internal port,
+	# restart the Listener
+	if app.boundPort != app.myBird.port:
+		print "Bouncing the listener"
+		restartListener(app.myBird.port)
+	return app.myBird.tick()
 
-gossiploop = task.LoopingCall(gossip)
-healthcheckloop = task.LoopingCall(healthcheck)
-# l.stop() will stop the looping calls
+
+@app.route('/spawn')
+def spawn():
+	return app.myBird.spawn()
+
+@app.route('/die')
+def die():
+	print "Bye."
+	reactor.stop()
+	return "Bye"
+	# return app.myBird.die()
+		
+print "I was called like this: %s" % (sys.argv)
+
+if 'momma' in sys.argv:
+	print "I'm a BABY!"
+	print os.environ.get('MOMMA_BIRD')
+	port = sys.argv[sys.argv.index('momma')+1]
+	print "Baby of %s" % port
+	_fork() and _decouple()
+	_fork() and _rebind()
+	app.myBird.momma = port
+	
+
 
 resource = WSGIResource(reactor, reactor.getThreadPool(), app)
 site = Site(resource)
-restartListener(birdport)
+restartListener(app.myBird.port)
+gossiploop = task.LoopingCall(gossip)
+tickloop = task.LoopingCall(tick)
 gossiploop.start(3.0) # call every three seconds
-healthcheckloop.start(30.0) # call every 30 seconds
+tickloop.start(5.0) # call every 30 seconds
 reactor.run()
-
-# http://highscalability.com/blog/2011/11/14/using-gossip-protocols-for-failure-detection-monitoring-mess.html
-# http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.160.2604
-# http://pysnmp.sourceforge.net/examples/current/index.html

@@ -44,6 +44,9 @@ References
  * http://john-sheehan.com/post/36704862225/x-callback-header-evented-web-building-block-by
  * https://code.google.com/p/pubsubhubbub/
  * http://www.slideshare.net/brevoortm/the-evented-web
+ * http://highscalability.com/blog/2011/11/14/using-gossip-protocols-for-failure-detection-monitoring-mess.html
+ * http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.160.2604
+ * http://pysnmp.sourceforge.net/examples/current/index.html
 
 Hurt-me web app:
 ================
@@ -53,3 +56,5 @@ Hurt-me web app:
 	/hurt-me-some (50ms)
 	/hurt-me-lots (500ms)
 	/slay-me      (5000ms)
+
+
