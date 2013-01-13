@@ -1,0 +1,9 @@
+{
+	"omega_port": 8000,
+	"low_port": 8001, 
+	"immortal_count": 1, 
+	"tick_interval": 3.0, 
+	"gossip_interval": 3.0, 
+	"high_port": 9000,
+	"log_level": "warn"
+}

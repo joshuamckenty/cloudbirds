@@ -36,6 +36,10 @@ Tuning parameters:
 
 TODO: Everything.
 
+ - Make the webhooks also deliver config data?
+ - Read config data from json or yaml
+ - Immortals are ranked by age - young immortals can be terminated if they're excessive.
+
 References
 ==========
 

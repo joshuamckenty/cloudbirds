@@ -21,10 +21,8 @@ from twisted.internet import reactor
 from twisted.internet.protocol import ServerFactory, ProcessProtocol
 
 import util
+CONFIG = util.get_config()
 
-LOW_PORT = 8001
-HIGH_PORT = 9000
-OMEGA_PORT = 8000
 limits = {'cpu' : 0.5, 'ram' : 0.8}
 # TODO - Adapt health check interval based on current state
 
@@ -41,6 +39,7 @@ class CloudBirdAgent(Agent):
 		self.become_egg()
 		self.momma = None
 		self.host = "localhost"
+		# TODO(JMC): Make 'gossipable' properties based on decorators
 		self.flock = []
 		self.antiFlock = []
 		self.is_omega = False
@@ -70,25 +69,29 @@ class CloudBirdAgent(Agent):
 		self.health = {}
 
 	def select_port(self):
-		if not (util.test_for_socket(port=OMEGA_PORT)):
+		"""Every agent needs a port and a host"""
+		# TODO(JMC): Immortals need to reserve the first 'n' ports
+		# Rather than a single omega binding to a special port #
+		if not (util.test_for_socket(port=CONFIG['omega_port'])):
 			self.is_omega = True
 			logging.info("OMEGA PORT SELECTION")
-			return OMEGA_PORT
+			return CONFIG['omega_port']
 		while True: # TODO - probably shouldn't run this forever
-			port=random.randrange(LOW_PORT, HIGH_PORT)
+			port=random.randrange(CONFIG['low_port'], CONFIG['high_port'])
 			if not util.test_for_socket(port=port):
 				logging.info("PORT SELECTION : %s" % (port))
 				return port
 	
 	@property
 	def omega_url(self):
-		return "http://localhost:%s" % (OMEGA_PORT)
+		return "http://localhost:%s" % (CONFIG['omega_port'])
 	
 	@property
 	def url(self):
 		return "http://%s:%s" % (self.host, self.port)
 	
 	def add_flock_member(self, bird_url):
+		# TODO: Change flock to being a set or dict with more info on each bird
 		if not bird_url in self.flock:
 			self.flock.append(bird_url)
 		if bird_url in self.antiFlock:
@@ -104,6 +107,7 @@ class CloudBirdAgent(Agent):
 		bird_url = random.choice(self.flock)
 		if bird_url == self.url:
 			return "Don't like to talk to myself."
+		# TODO(JMC): unmagic me
 		url = "%s/tellme/%s" % (bird_url, self.port)
 		actions = [{'action': 'saw_bird', 'bird_url': saw_bird} for saw_bird in self.flock]
 		actions.extend([{'action': 'dead_bird', 'bird_url': dead_bird} for dead_bird in self.antiFlock])
@@ -122,6 +126,7 @@ class CloudBirdAgent(Agent):
 		logging.debug("Got some gossip with msg %s" % msg)
 		messages = json.loads(msg)
 		for msg in messages:
+			# TODO(JMC): Should call the action method by getattr on myself
 			if msg['action'] == "saw_bird":
 				self.add_flock_member(msg['bird_url'])
 				logging.debug("Adding a flock member of %s" % msg['bird_url'])
@@ -130,14 +135,18 @@ class CloudBirdAgent(Agent):
 				logging.debug("Removing a flock member of %s" % msg['bird_url'])
 
 	def healthcheck(self):
+		# TODO(JMC): Should use logarithmic decay on change of health before changing state
+		# TODO(JMC): Children need to watch parents for overwhelm
 		if self.fsm.current == "egg":
 			return "Eggs don't have health."
 		self.health = snmp.get_stats()
 		for stat_key in self.health.iterkeys():
 			stat_val = self.health[stat_key]
-			logging.debug("Looking at stat_key of %s with value of %s" % (stat_key, stat_val))
+			logging.debug("Looking at stat_key \
+					of %s with value of %s" % (stat_key, stat_val))
 			if stat_key in limits.keys() and stat_val > limits[stat_key]:
-				logging.warn("Stat %s is out of bounds! (Value is %s / %s)" % (stat_key, stat_val, limits[stat_key]))
+				logging.warn("Stat %s is out of bounds! \
+						(Value is %s / %s)" % (stat_key, stat_val, limits[stat_key]))
 				if self.fsm.current == 'dying':
 					return "Too overwhelmed, dying."
 				self.fsm.get_stressed()
@@ -152,7 +161,7 @@ class CloudBirdAgent(Agent):
 		old_port = self.port
 		self.is_omega = True
 		self.remove_flock_member(self.url)
-		self.port = OMEGA_PORT
+		self.port = CONFIG['omega_port']
 		self.add_flock_member(self.url)
 		if self.fsm.current == 'egg':
 			self.fsm.hatch()
@@ -167,7 +176,8 @@ class CloudBirdAgent(Agent):
 		command = [sys.executable]
 		command.extend(sys.argv)
 		logging.debug("Command for spawn is %s" % command)
-		subprocess = reactor.spawnProcess(pp, command[0], command, {'MOMMA_BIRD' : self.url}, childFDs = { 0: 0, 1: 1, 2: 2})
+		subprocess = reactor.spawnProcess(pp, command[0], command, 
+				{'MOMMA_BIRD' : self.url}, childFDs = { 0: 0, 1: 1, 2: 2})
 		return "Okay."
 	
 	def die(self):

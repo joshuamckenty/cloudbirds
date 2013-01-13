@@ -1,5 +1,0 @@
-Python    63355 joshuamckenty   10u  IPv4 0x37f6260868dd8dd      0t0  TCP *:8000 (LISTEN)
-Python    63372 joshuamckenty    3u  IPv4 0x37f626086e6c015      0t0  TCP *:8232 (LISTEN)
-Python    63387 joshuamckenty    3u  IPv4 0x37f62608695c29d      0t0  TCP *:8560 (LISTEN)
-Python    63393 joshuamckenty    3u  IPv4 0x37f6260939b98dd      0t0  TCP *:8561 (LISTEN)
-Python    63399 joshuamckenty    3u  IPv4 0x37f6260868e210d      0t0  TCP *:8521 (LISTEN)

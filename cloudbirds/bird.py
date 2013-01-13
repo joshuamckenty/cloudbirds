@@ -14,39 +14,18 @@ from twisted.internet import reactor
 from twisted.web.wsgi import WSGIResource
 from twisted.web.server import Site
 import logging
-import util
 
 import agent
+import util
+
+CONFIG = util.get_config()
+
 
 app = Flask(__name__)
 app.debug = True
 app.myBird = agent.CloudBirdAgent()
 app.listeningPort = None
 app.boundPort = None
-
-
-def _fork():
-	""" Fork ourselves."""
-	try:
-		if os.fork():
-			sys.exit(0)
-	except OSError, e:
-		sys.exit("Couldn't fork: %s" % (e))
-
-def _decouple():
-	""" Decouple the child from the parent """
-	# os.chdir('/')
-	os.umask(0)
-	os.setsid()
-
-def _rebind():
-	""" Rebind stdin/stderr/stdout """
-
-	[f.close() for f in [sys.stdin, sys.stderr, sys.stdout]]
-
-	sys.stdin = os.open('/dev/null', os.O_RDONLY)
-	sys.stderr = os.open('/dev/null', os.O_WRONLY)
-	sys.stdout = os.open('/dev/null', os.O_WRONLY)
 
 
 def restartListener(port):
@@ -122,10 +101,8 @@ logging.debug("I was called like this: %s" % (sys.argv))
 if os.environ.get('MOMMA_BIRD'):
 	logging.debug("I'm a BABY!")
 	logging.info("ENV says momma is %s" % os.environ.get('MOMMA_BIRD'))
-	_fork() and _decouple()
-	_fork() and _rebind()
+	util.daemonize()
 	app.myBird.momma = os.environ.get('MOMMA_BIRD')
-	
 
 
 resource = WSGIResource(reactor, reactor.getThreadPool(), app)
@@ -133,6 +110,6 @@ site = Site(resource)
 restartListener(app.myBird.port)
 gossiploop = task.LoopingCall(gossip)
 tickloop = task.LoopingCall(tick)
-gossiploop.start(3.0) # call every three seconds
-tickloop.start(5.0) # call every 30 seconds
+gossiploop.start(CONFIG['gossip_interval']) # call every three seconds - TODO: put in config file
+tickloop.start(CONFIG['tick_interval']) # call every 30 seconds - TODO: put in config file
 reactor.run()
