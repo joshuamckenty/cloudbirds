@@ -5,5 +5,5 @@
 	"tick_interval": 3.0, 
 	"gossip_interval": 3.0, 
 	"high_port": 9000,
-	"log_level": "warn"
+	"log_level": "debug"
 }

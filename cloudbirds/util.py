@@ -6,6 +6,7 @@ TODO: Some logging stuff
 import sys
 from twisted.python import log
 
+import os
 import json
 import logging
 import socket
@@ -46,6 +47,7 @@ def _decouple():
 
 def _rebind():
 	""" Rebind stdin/stderr/stdout """
+	return # TEMP
 	[f.close() for f in [sys.stdin, sys.stderr, sys.stdout]]
 
 	sys.stdin = os.open('/dev/null', os.O_RDONLY)
