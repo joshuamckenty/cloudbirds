@@ -52,13 +52,3 @@ References
  * http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.160.2604
  * http://pysnmp.sourceforge.net/examples/current/index.html
 
-Hurt-me web app:
-================
-
-	/ignore-me
-	/tickle-me
-	/hurt-me-some (50ms)
-	/hurt-me-lots (500ms)
-	/slay-me      (5000ms)
-
-

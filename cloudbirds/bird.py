@@ -1,7 +1,7 @@
-# LICENSE HERE
+# JMC License header here
 """
 Yer basic cloudbird daemon, runs on every host.
-TODO:
+TODO(JMC):
 Security of this interface
 """
 
@@ -68,7 +68,7 @@ def gossip():
 	Randomly sends to other birds."""
 	try:
 		app.myBird.gossip()
-	except: # TODO (Custom Exception)
+	except: # TODO(JMC): (Custom Exception)
 		app.myBird.become_omega()
 		restartListener(app.myBird.port)
 
@@ -110,6 +110,6 @@ site = Site(resource)
 restartListener(app.myBird.port)
 gossiploop = task.LoopingCall(gossip)
 tickloop = task.LoopingCall(tick)
-gossiploop.start(CONFIG['gossip_interval']) # call every three seconds - TODO: put in config file
-tickloop.start(CONFIG['tick_interval']) # call every 30 seconds - TODO: put in config file
+gossiploop.start(CONFIG['gossip_interval'])
+tickloop.start(CONFIG['tick_interval'])
 reactor.run()

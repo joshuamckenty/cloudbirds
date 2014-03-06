@@ -24,7 +24,7 @@ import util
 CONFIG = util.get_config()
 
 limits = {'cpu' : 0.5, 'ram' : 0.8}
-# TODO - Adapt health check interval based on current state
+# TODO(JMC) - Adapt health check interval based on current state
 
 
 class EggProcessProtocol(ProcessProtocol):
@@ -57,7 +57,7 @@ class CloudBirdAgent(Agent):
 		self.fsm = Fysom({
 		  'initial': 'egg',
 		  'events': [
-			{'name': 'hatch',  'src': 'egg',	'dst': 'teenager'},
+			{'name': 'hatch',  'src': 'egg', 'dst': 'teenager'},
 			{'name': 'grow_up',	 'src': 'teenager', 'dst': 'content'},
 			{'name': 'get_stressed',  'src': 'teenager', 'dst': 'content'}, # WRONG AND TEMPORARY
 			{'name': 'get_stressed',  'src': 'content', 'dst': 'overwhelmed'},
@@ -84,14 +84,14 @@ class CloudBirdAgent(Agent):
 	
 	@property
 	def omega_url(self):
-		return "http://localhost:%s" % (CONFIG['omega_port'])
+		return "http://%s:%s" % (self.host, CONFIG['omega_port'])
 	
 	@property
 	def url(self):
 		return "http://%s:%s" % (self.host, self.port)
 	
 	def add_flock_member(self, bird_url):
-		# TODO: Change flock to being a set or dict with more info on each bird
+		# TODO(JMC): Change flock to being a set or dict with more info on each bird
 		if not bird_url in self.flock:
 			self.flock.append(bird_url)
 		if bird_url in self.antiFlock:
@@ -148,6 +148,7 @@ class CloudBirdAgent(Agent):
 				logging.warn("Stat %s is out of bounds! \
 						(Value is %s / %s)" % (stat_key, stat_val, limits[stat_key]))
 				if self.fsm.current == 'dying':
+					#TODO(JMC): Actually die here.
 					return "Too overwhelmed, dying."
 				self.fsm.get_stressed()
 				return self.fsm.current
@@ -155,7 +156,11 @@ class CloudBirdAgent(Agent):
 	def tick(self):
 		if self.is_omega and self.fsm.current == 'egg':
 			self.fsm.hatch()
+			self.fsm.grow_up()
 		self.healthcheck()
+	
+	def grow_up(self):
+		self.fsm.grow_up()
 
 	def become_omega(self):
 		old_port = self.port

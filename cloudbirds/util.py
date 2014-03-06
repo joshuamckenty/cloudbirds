@@ -1,3 +1,4 @@
+# JMC License header here
 """
 Utils for cloudbirds
 TODO: Some logging stuff
@@ -21,7 +22,7 @@ def test_for_socket(host='127.0.0.1', port=8000):
 		return False
 
 def get_config(path='config.json'):
-	# TODO: Memoize
+	# TODO(JMC): Memoize
 	with open(path, "r") as config_file:
 		return json.loads(config_file.read())
 
